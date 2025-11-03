@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/jatinraghav/Documents/Programming/codebases/game_of_life/cmake_install.cmake",
+		"/Users/jatinraghav/Documents/Programming/codebases/game_of_life/build/external/raylib-master/cmake_install.cmake",
+		"/Users/jatinraghav/Documents/Programming/codebases/game_of_life/build/external/raylib-master/raylib/cmake_install.cmake",
+		"/Users/jatinraghav/Documents/Programming/codebases/game_of_life/build/external/raylib-master/raylib/external/glfw/cmake_install.cmake",
+		"/Users/jatinraghav/Documents/Programming/codebases/game_of_life/build/external/raylib-master/raylib/external/glfw/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
