@@ -1,6 +1,7 @@
 #include "camera.cpp"
 #include "helper.cpp"
 #include "raylib.h"
+#include "start_screen.cpp"
 #include "variables.hpp"
 #include <vector>
 
@@ -12,7 +13,9 @@ int main(void) {
 
   InitWindow(screenWidth, screenHeight, "Game of Life");
 
-  std::vector grid(ROWS, std::vector<int>(COLS));
+  show_start_screen(screenWidth, screenHeight);
+
+  std::vector<std::vector<int>> grid(ROWS, std::vector<int>(COLS));
 
   Camera2D camera;
   init_camera(camera, screenWidth, screenHeight);
