@@ -26,6 +26,7 @@ int main(void) {
   double time = 0;
   while (!WindowShouldClose() && game_state) {
     BeginDrawing();
+    BeginTextureMode(target);
     render_grid(grid);
     handle_all_inputs(grid, pred_grid, game_state, rate);
     if (game_state == 1) {
@@ -42,6 +43,7 @@ int main(void) {
       }
       render_pred_grid(pred_grid);
     }
+    EndTextureMode();
     BeginShaderMode(bloom);
     DrawTextureRec(target.texture,
                    (Rectangle){0, 0, (float)target.texture.width,

@@ -116,8 +116,8 @@ void render_grid(std::vector<std::vector<int>> &grid) {
   // ClearBackground(BG_COLOR);
   Rectangle square = GetShapesTextureRectangle();
   square.height = square.width = CELL_SIZE;
-  for (int i = 0; i < ROWS; i++) {
-    for (int j = 0; j < COLS; j++) {
+  for (int i = 0; i < COLS; i++) {
+    for (int j = 0; j < ROWS; j++) {
       square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
       square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
       if (grid[i][j] == 1) {
@@ -134,8 +134,8 @@ void render_pred_grid(std::vector<std::vector<int>> &grid) {
   // ClearBackground(BG_COLOR);
   Rectangle square = GetShapesTextureRectangle();
   square.height = square.width = CELL_SIZE;
-  for (int i = 0; i < ROWS; i++) {
-    for (int j = 0; j < COLS; j++) {
+  for (int i = 0; i < COLS; i++) {
+    for (int j = 0; j < ROWS; j++) {
       square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
       square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
       if (grid[i][j] == 2) {
