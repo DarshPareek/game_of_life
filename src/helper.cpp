@@ -76,20 +76,25 @@ void UpdateHelpDialog();
 
 bool inEditMode = false;
 
-void change_cell(std::vector<std::vector<int>> &grid, int state) {
-  Vector2 location = GetMousePosition();
-  int x = (location.x) / (CELL_SIZE + MARGIN);
-  int y = (location.y) / (CELL_SIZE + MARGIN);
+void change_cell(std::vector<std::vector<int>> &grid, int state,
+                 Camera2D &camera) {
+  Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), camera);
+  int x = mouseWorld.x / (CELL_SIZE + MARGIN);
+  int y = mouseWorld.y / (CELL_SIZE + MARGIN);
   if (x >= 0 && x < grid[0].size() && y >= 0 && y < grid.size()) {
     grid[x][y] = state;
   }
 }
 
-void take_grid_pos(std::vector<std::vector<int>> &grid) {
+void take_grid_pos(std::vector<std::vector<int>> &grid, Camera2D &camera,
+                   int screenWidth, int screenHeight) {
   inEditMode = true;
   SetTargetFPS(INPUT_FPS);
   while (!WindowShouldClose()) {
     BeginDrawing();
+
+    update_camera(camera, screenWidth, screenHeight);
+
     if (IsKeyPressed(KEY_SPACE))
       break;
     if (IsKeyPressed(QUIT)) {
@@ -98,12 +103,17 @@ void take_grid_pos(std::vector<std::vector<int>> &grid) {
       exit(0);
     }
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-      change_cell(grid, 1);
+      change_cell(grid, 1, camera);
     if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-      change_cell(grid, 0);
+      change_cell(grid, 0, camera);
+
+    BeginMode2D(camera);
     render_grid(grid);
+    EndMode2D();
+
     if (!inEditMode)
       UpdateHelpDialog();
+
     EndDrawing();
   }
   inEditMode = false;
@@ -149,6 +159,10 @@ void DrawHelpDialog() {
   DrawText("Up / Down - Speed +/-", textX, textY, 16, text);
   textY += 20;
   DrawText("RETURN - Spawn Random Cells", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Mouse Wheel- Zoom +/-", textX, textY, 16, text);
+  textY += 20;
+  DrawText("SHIFT + Mouse Left - Pan", textX, textY, 16, text);
   textY += 20;
   DrawText("Q - Quit", textX, textY, 16, text);
 }
