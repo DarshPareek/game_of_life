@@ -1,37 +1,61 @@
 #include "camera.cpp"
 #include "helper.cpp"
-#include "rendering.cpp"
 #include "raylib.h"
-#include "start_screen.cpp"
+#include "rendering.cpp"
+#include "screens.cpp"
 #include "variables.hpp"
-#include <cstdlib>
-#include <ctime>
-#include <vector>
-#include "camera.cpp"
-bool running = true;
+#include <thread>
 int main(void) {
-        InitWindow(screenWidth, screenHeight, "Game of Life");
-        std::vector grid(ROWS, std::vector<int>(COLS));
-        int rate = 1;
-        SetTargetFPS(FPS);
-        show_start_screen(screenWidth, screenHeight);
-        double time = 0;
-        Camera2D camera;
-        init_camera(camera);
-        target = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-        bloom = LoadShader(0, TextFormat("./resources/bloom.fs", GLSL_VERSION));
-        edit_mode(grid,camera);
-        // this loop only runs the 'run' mode
-        while (!WindowShouldClose()) {
-                handle_run_inputs(grid, running,rate,camera);
-                update_camera(camera);
-                time += GetFrameTime();
-                if ((time * rate) >= 1 && running){
-                        updMap(grid);
-                        time = 0;
-                }
-                render_grid(grid,camera);
-        }
-        CloseWindow();
-        return 0;
+  InitWindow(screenWidth, screenHeight, "Game of Life");
+  SetTargetFPS(FPS);
+  Camera2D camera;
+  init_camera(camera);
+  auto grids = pass_data_to_main();
+  grids.camera = camera;
+  grids.grid[1][1] = 1;
+  bool shader_toggle = true;
+  // std::thread cursor_thread(handle_cursor, grids);
+  Shader bloom =
+      LoadShader(0, TextFormat("./resources/bloom.fs", GLSL_VERSION));
+  Shader deft = LoadShader(
+      0,
+      TextFormat("./resources/bl.fs",
+                 GLSL_VERSION)); // IDK how to load default shader and too lazy
+  RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
+  while (!WindowShouldClose()) {
+    if (IsKeyPressed(QUIT)) {
+      break;
+    }
+    if (IsKeyPressed(KEY_S)) {
+      shader_toggle = !shader_toggle;
+    }
+    BeginTextureMode(target);
+    BeginMode2D(camera);
+    ClearBackground(BG_COLOR);
+    update_camera(camera);
+    render_game(camera);
+    EndMode2D();
+    EndTextureMode();
+    BeginDrawing();
+    if (shader_toggle) {
+      BeginShaderMode(bloom);
+      DrawTextureRec(target.texture,
+                     (Rectangle){0, 0, (float)target.texture.width,
+                                 (float)-target.texture.height},
+                     (Vector2){0, 0}, WHITE);
+      EndShaderMode();
+    } else {
+      BeginShaderMode(deft);
+      DrawTextureRec(target.texture,
+                     (Rectangle){0, 0, (float)target.texture.width,
+                                 (float)-target.texture.height},
+                     (Vector2){0, 0}, WHITE);
+      EndShaderMode();
+    }
+    UpdateHelpDialog();
+    EndDrawing();
+  }
+  // cursor_thread.join();
+  CloseWindow();
+  return 0;
 }

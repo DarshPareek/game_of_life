@@ -1,0 +1,32 @@
+# started on Thu Nov 13 20:31:01 2025
+
+
+ Performance counter stats for './bin/Debug/game_of_life':
+
+    42,191,936,950      task-clock:u                     #    0.961 CPUs utilized             
+                 0      context-switches:u               #    0.000 /sec                      
+                 0      cpu-migrations:u                 #    0.000 /sec                      
+             4,583      page-faults:u                    #  108.623 /sec                      
+   277,808,210,278      cpu_atom/instructions/u          #    2.59  insn per cycle              (0.20%)
+   606,679,802,670      cpu_core/instructions/u          #    3.27  insn per cycle              (99.77%)
+   107,091,255,821      cpu_atom/cycles/u                #    2.538 GHz                         (0.20%)
+   185,624,212,360      cpu_core/cycles/u                #    4.400 GHz                         (99.77%)
+    19,301,345,774      cpu_atom/branches/u              #  457.465 M/sec                       (0.20%)
+    27,412,371,258      cpu_core/branches/u              #  649.706 M/sec                       (99.77%)
+       142,472,974      cpu_atom/branch-misses/u         #    0.74% of all branches             (0.20%)
+        34,825,838      cpu_core/branch-misses/u         #    0.13% of all branches             (99.77%)
+ #     35.0 %  tma_backend_bound      
+                                                  #      3.1 %  tma_bad_speculation    
+                                                  #      3.1 %  tma_frontend_bound     
+                                                  #     58.8 %  tma_retiring             (99.77%)
+ #      4.8 %  tma_bad_speculation    
+                                                  #     51.1 %  tma_retiring             (0.20%)
+ #     36.1 %  tma_backend_bound      
+                                                  #      8.0 %  tma_frontend_bound       (0.20%)
+
+      43.888521300 seconds time elapsed
+
+      41.822790000 seconds user
+       0.246923000 seconds sys
+
+

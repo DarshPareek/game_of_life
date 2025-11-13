@@ -1,4 +1,4 @@
- #include "raylib.h"
+#include "raylib.h"
 #include "variables.hpp"
 #include <algorithm>
 #ifndef CAMERA
@@ -6,8 +6,8 @@
 constexpr float CAMERA_ZOOM_SPEED = 0.1f;
 constexpr float CAMERA_MAX_ZOOM = 3.0f;
 constexpr float CAMERA_PAN_SPEED = 10.0f;
-constexpr float screenWidth= COLS*(CELL_SIZE)+(COLS+1)*MARGIN;
-constexpr float screenHeight= ROWS*(CELL_SIZE)+(ROWS+1)*MARGIN;
+constexpr float screenWidth = COLS * (CELL_SIZE) + (COLS + 1) * MARGIN;
+constexpr float screenHeight = ROWS * (CELL_SIZE) + (ROWS + 1) * MARGIN;
 
 static float min_zoom() {
   float worldWidth = COLS * (CELL_SIZE + MARGIN) + MARGIN;
