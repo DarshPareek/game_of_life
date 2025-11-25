@@ -25,10 +25,11 @@ void show_start_screen(int screenWidth, int screenHeight) {
     DrawText(hintText, (screenWidth - hintWidth) / 2, screenHeight / 2 + 50, 15,
              DEAD);
 
-    EndDrawing();
-
-    if (IsKeyPressed(KEY_SPACE))
+    if (IsKeyPressed(KEY_SPACE)) {
       break;
+    }
+
+    EndDrawing();
   }
 }
 
