@@ -4,11 +4,79 @@
 #include "camera.cpp"
 #include "raylib.h"
 #include "variables.hpp"
-#include <ctime>
-#include <iostream>
-#include <ostream>
-#include <utility>
+#include <cstdlib>
 #include <vector>
+float dialogAlpha = 1.0f;
+double lastActivityTime = 0.0f;
+bool inEditMode = true;
+void DrawHelpDialog() {
+  float width = DIALOG_WIDTH;
+  float height = DIALOG_HEIGHT;
+  Rectangle box = {(float)GetScreenWidth() - width - DIALOG_MARGIN,
+                   DIALOG_MARGIN, width, height};
+
+  Color bg = DIALOG_BG;
+  bg.a = (unsigned char)(255 * DIALOG_SEMI_TRANSPARENCY * dialogAlpha);
+  Color border = Fade(DIALOG_BORDER, dialogAlpha);
+  Color text = Fade(DIALOG_TEXT, dialogAlpha);
+
+  Rectangle borderRect = {box.x - DIALOG_BORDER_THICKNESS,
+                          box.y - DIALOG_BORDER_THICKNESS,
+                          box.width + 2 * DIALOG_BORDER_THICKNESS,
+                          box.height + 2 * DIALOG_BORDER_THICKNESS};
+  DrawRectangleRounded(borderRect, DIALOG_ROUNDNESS, 10, border);
+  DrawRectangleRounded(box, DIALOG_ROUNDNESS, 10, bg);
+
+  int heading_offset = 40;
+  float textX = box.x + DIALOG_PADDING + heading_offset;
+  float textY = box.y + DIALOG_PADDING;
+  DrawText("Controls :", textX - heading_offset, textY, 18, text);
+  textY += 25;
+  DrawText("Edit Mode Commands :", textX - heading_offset, textY, 18, text);
+  textY += 25;
+  DrawText("Mouse Left - Add Cell", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Mouse Right - Kill Cell", textX, textY, 16, text);
+  textY += 20;
+  DrawText("T - Start Prediction", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Space - Run Mode", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Run Mode Commands :", textX - heading_offset, textY, 16, text);
+  textY += 20;
+  DrawText("SPACE - Edit Mode", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Common Commands :", textX - heading_offset, textY, 16, text);
+  textY += 20;
+  DrawText("R - Clear Grid", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Up / Down - Speed +/-", textX, textY, 16, text);
+  textY += 20;
+  DrawText("RETURN - Spawn Random Cells", textX, textY, 16, text);
+  textY += 20;
+  DrawText("Q - Quit", textX, textY, 16, text);
+}
+void UpdateHelpDialog() {
+  if (inEditMode)
+    return;
+  bool active = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_R) || IsKeyDown(KEY_Q) ||
+                IsKeyDown(KEY_S) || IsKeyDown(KEY_UP) || IsKeyDown(KEY_DOWN) ||
+                GetMouseDelta().x != 0 || GetMouseDelta().y ||
+                IsKeyDown(KEY_ENTER) != 0;
+  double now = GetTime();
+  if (active)
+    lastActivityTime = now;
+  if (now - lastActivityTime < DIALOG_INACTIVITY_TIME)
+    dialogAlpha += GetFrameTime() * DIALOG_FADE_SPEED;
+  else
+    dialogAlpha -= GetFrameTime() * DIALOG_FADE_SPEED;
+  if (dialogAlpha < 0)
+    dialogAlpha = 0;
+  if (dialogAlpha > 1)
+    dialogAlpha = 1;
+  if (dialogAlpha > 0.01f)
+    DrawHelpDialog();
+}
 const char *GRID_FS = R"(
 #version 330
 
@@ -84,7 +152,7 @@ public:
   void Init();
   // Single draw function replaces all render_alive/dead
   void draw(int predictMode);
-
+  void reset();
   void spawnX(int x = RAND);
   void reset_images(); // Helper to clear images
 };
@@ -198,42 +266,6 @@ void Grid::update_pred_grid() {
   pred_grid = pred_temp_grid;
   UpdateTexture(predTexture, predImage.data);
 }
-// void Grid::render_alive() {
-// for (int k = 0; k < alive.size(); k++) {
-//   int i = alive[k][0];
-//   int j = alive[k][1];
-//   square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
-//   square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
-//   DrawRectangleRounded(square, ROUNDED, CELL_SIZE, LIVING);
-// }
-// }
-// void Grid::render_dead() {
-//   for (int k = 0; k < dead.size(); k++) {
-//     int i = dead[k][0];
-//     int j = dead[k][1];
-//     square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
-//     square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
-//     DrawRectangleRounded(square, ROUNDED, CELL_SIZE, DEAD);
-//   }
-// }
-// void Grid::render_pred_alive() {
-//   for (int k = 0; k < pred_alive.size(); k++) {
-//     int i = pred_alive[k][0];
-//     int j = pred_alive[k][1];
-//     square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
-//     square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
-//     DrawRectangleRounded(square, ROUNDED, CELL_SIZE, PRED_LIVING);
-//   }
-// }
-// void Grid::render_pred_dead() {
-//   for (int k = 0; k < pred_dead.size(); k++) {
-//     int i = pred_dead[k][0];
-//     int j = pred_dead[k][1];
-//     square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
-//     square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
-//     DrawRectangleRounded(square, ROUNDED, CELL_SIZE, PRED_DEAD);
-//   }
-// }
 void Grid::draw(int predictMode) {
   Rectangle source = {0, 0, (float)gridTexture.width,
                       (float)gridTexture.height};
@@ -262,19 +294,128 @@ void Grid::spawnX(int x) {
   }
   UpdateTexture(gridTexture, gridImage.data);
 }
-// void Grid::spawnX(int x) {
-//   std::srand(static_cast<unsigned int>(std::time(nullptr)));
-//   int rows = grid.size();
-//   int cols = grid[0].size();
-//   for (int k = 0; k < x; k++) {
-//     int r = (rand() % rows);
-//     int c = (rand() % cols);
-//     grid[r][c] = 1;
-//     pred_grid[r][c] = 1;
-//     alive.push_back({r, c});
-//     pred_alive.push_back({r, c});
+void Grid::reset() {
+  // Reset image
+  ImageClearBackground(&gridImage, DEAD);
+
+  for (auto &row : grid)
+    std::fill(row.begin(), row.end(), 0);
+  UpdateTexture(gridTexture, gridImage.data);
+}
+
+bool is_in(Vector2 &current, Vector2 &target, Vector2 source) {
+  return (current.x <= target.x) &&
+         ((current.y <= std::max(target.y, source.y) &&
+           current.y >= std::min(target.y, source.y)));
+}
+void update_cell(Vector2 cursor, std::vector<std::vector<int>> &grid,
+                 int state) {
+  int x = (cursor.x) / (CELL_SIZE + MARGIN);
+  int y = (cursor.y) / (CELL_SIZE + MARGIN);
+  if (x >= 0 && x < grid[0].size() && y >= 0 && y < grid.size()) {
+    grid[x][y] = state;
+  }
+}
+
+// void get_cursor_pos(std::vector<std::vector<int>> &grid, int state,
+//                     Camera2D &camera) {
+//   Vector2 now = GetScreenToWorld2D(GetMousePosition(), camera);
+//   Vector2 delta = GetMouseDelta();
+//   delta.x /= camera.zoom;
+//   delta.y /= camera.zoom;
+//   Vector2 prev = now;
+//   prev.x -= delta.x;
+//   prev.y -= delta.y;
+//   Vector2 current, source, target;
+//   if (prev.x <= now.x) {
+//     source = prev;
+//     target = now;
+//   } else {
+//     source = now;
+//     target = prev;
+//   }
+//   current = source;
+//   double slope = abs(target.y - source.y) / (target.x - source.x);
+//   while (is_in(current, target, source)) {
+//     update_cell(current, grid, state);
+//     if (abs(target.x - source.x) <= abs(target.y - source.y)) {
+//       current.y += DDA_DELTA * ((target.y >= current.y) ? 1.0 : -1.0);
+//       double delta_x = DDA_DELTA / slope;
+//       current.x += delta_x * ((target.x >= current.x) ? 1.0 : -1.0);
+//     } else {
+//       current.x += DDA_DELTA * ((target.x >= current.x) ? 1.0 : -1.0);
+//       double delta_y = slope * DDA_DELTA;
+//       current.y += delta_y * ((target.y >= current.y) ? 1.0 : -1.0);
+//     }
 //   }
 // }
+void get_cursor_pos(Grid &grid, int state, Camera2D &camera) {
+
+  Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), camera);
+  Vector2 delta = GetMouseDelta();
+
+  // Adjust delta by zoom to get accurate world movement
+  Vector2 prevPos = {mousePos.x - delta.x / camera.zoom,
+                     mousePos.y - delta.y / camera.zoom};
+
+  // 1. Convert World Coordinates to Grid Indices (Integers)
+  // We do this ONCE before the loop.
+  int x0 = (int)(prevPos.x /
+                 (CELL_SIZE)); // Assuming margins are handled in shader/logic
+  int y0 = (int)(prevPos.y / (CELL_SIZE));
+  int x1 = (int)(mousePos.x / (CELL_SIZE));
+  int y1 = (int)(mousePos.y / (CELL_SIZE));
+
+  int rows = grid.grid.size();
+  int cols = grid.grid[0].size();
+
+  // 2. Bresenham's Line Algorithm (Integer Math = No Infinite Loops)
+  int dx = abs(x1 - x0);
+  int sx = x0 < x1 ? 1 : -1;
+  int dy = -abs(y1 - y0);
+  int sy = y0 < y1 ? 1 : -1;
+  int err = dx + dy;
+
+  while (true) {
+    // Bounds Check before writing
+    if (x0 >= 0 && x0 < cols && y0 >= 0 && y0 < rows) {
+      grid.grid[y0][x0] = state; // Note: grid is usually [row][col] -> [y][x]
+      grid.pred_grid[y0][x0] = state;
+      Color color = (state == 1) ? LIVING : DEAD;
+      Color color1 = (state == 1) ? PRED_LIVING : PRED_DEAD;
+      ImageDrawPixel(&grid.gridImage, x0, y0, color);
+      ImageDrawPixel(&grid.predImage, x0, y0, color1);
+    }
+
+    // If we reached the target cell, break
+    if (x0 == x1 && y0 == y1)
+      break;
+
+    int e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x0 += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+  UpdateTexture(grid.gridTexture, grid.gridImage.data);
+}
+void handle_cursor(Grid &grids, int mode, Camera2D camera) {
+  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !IsKeyDown(KEY_LEFT_SHIFT) &&
+      !IsKeyDown(KEY_RIGHT_SHIFT)) {
+    get_cursor_pos(grids, 1, camera);
+    grids.pred_grid = grids.grid;
+  }
+  if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && !IsKeyDown(KEY_LEFT_SHIFT) &&
+      !IsKeyDown(KEY_RIGHT_SHIFT)) {
+    get_cursor_pos(grids, 0, camera);
+    grids.pred_grid = grids.grid;
+  }
+}
+
 class Game {
 public:
   Camera2D camera;
@@ -329,9 +470,9 @@ void Game::init_game() {
 void Game::run() {
   InitWindow(screenWidth, screenHeight, "GAME OF LIFE");
   init_game();
-  SetTargetFPS(FPS);
   init_camera(camera);
   while (!WindowShouldClose()) {
+    update_camera(camera);
     handle_inputs();
     time += GetFrameTime();
     if ((time * rate) >= 1 && mode == 1 && predict == 1) {
@@ -347,6 +488,7 @@ void Game::run() {
                    (Rectangle){0, 0, (float)main.texture.width,
                                (float)-main.texture.height},
                    (Vector2){0, 0}, WHITE);
+    UpdateHelpDialog();
     EndDrawing();
   }
   CloseWindow();
@@ -371,19 +513,6 @@ void Game::home_screen_texture() {
            DEAD);
   EndTextureMode();
 }
-// void Game::grid_texture() {
-//   BeginTextureMode(main_grid);
-//   ClearBackground(BG_COLOR);
-//   square.height = square.width = CELL_SIZE;
-//   for (int i = 0; i < COLS; i++) {
-//     for (int j = 0; j < ROWS; j++) {
-//       square.x = i * (CELL_SIZE) + (i + 1) * MARGIN;
-//       square.y = j * (CELL_SIZE) + (j + 1) * MARGIN;
-//       DrawRectangleRounded(square, ROUNDED, CELL_SIZE, DEAD);
-//     }
-//   }
-//   EndTextureMode();
-// }
 void Game::handle_inputs() {
   if (IsKeyPressed(KEY_DOWN)) {
     rate--;
@@ -397,20 +526,32 @@ void Game::handle_inputs() {
       rate = MAX_RATE;
     }
   }
+  if (IsKeyPressed(KEY_Q)) {
+    CloseWindow();
+    exit(0);
+  }
   if (mode == 0) {
     if (IsKeyPressed(KEY_SPACE)) {
       mode = 1;
+      inEditMode = true;
     }
   } else if (mode == 1) {
+    handle_cursor(grids, mode, camera);
     if (IsKeyPressed(KEY_SPACE)) {
       mode = 2;
       predict = 0;
+      inEditMode = false;
     }
-    if (IsKeyPressed(KEY_R)) {
+    if (IsKeyPressed(KEY_ENTER)) {
       grids.spawnX();
     }
+    if (IsKeyPressed(KEY_R)) {
+      grids.reset();
+      grids.pred_grid = grids.grid;
+    }
     if (IsKeyPressed(KEY_T)) {
-      predict = 1;
+      predict = !predict;
+      grids.pred_grid = grids.grid;
     }
   } else {
     if (IsKeyPressed(KEY_SPACE)) {
@@ -444,4 +585,5 @@ void Game::handle_drawing() {
   }
   EndTextureMode();
 }
+
 #endif // !GAME
