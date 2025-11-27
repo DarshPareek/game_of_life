@@ -5,6 +5,8 @@
 #include "raylib.h"
 #include "variables.hpp"
 #include <cstdlib>
+#include <iostream>
+#include <ostream>
 #include <vector>
 float dialogAlpha = 1.0f;
 double lastActivityTime = 0.0f;
@@ -50,6 +52,8 @@ void DrawHelpDialog() {
   textY += 20;
   DrawText("R - Clear Grid", textX, textY, 16, text);
   textY += 20;
+  DrawText("S - Bloom Shader", textX, textY, 16, text);
+  textY += 20;
   DrawText("Up / Down - Speed +/-", textX, textY, 16, text);
   textY += 20;
   DrawText("RETURN - Spawn Random Cells", textX, textY, 16, text);
@@ -77,57 +81,6 @@ void UpdateHelpDialog() {
   if (dialogAlpha > 0.01f)
     DrawHelpDialog();
 }
-const char *GRID_FS = R"(
-#version 330
-
-in vec2 fragTexCoord;
-in vec4 fragColor;
-out vec4 finalColor;
-
-uniform sampler2D texture0;
-uniform vec4 colDiffuse;
-
-// Custom Uniforms we will send
-uniform vec2 gridSize; // (Columns, Rows)
-uniform float gap;     // 0.0 to 0.5 (Spacing)
-uniform float radius;  // 0.0 to 0.5 (Roundness)
-
-void main() {
-    // 1. Calculate which Grid Cell this pixel belongs to
-    vec2 cellCoord = floor(fragTexCoord * gridSize);
-    vec2 cellUV = fract(fragTexCoord * gridSize); // 0.0 to 1.0 inside the cell
-
-    // 2. Sample the color from the texture (Point filtering ensures we get the exact cell state)
-    // We offset by 0.5 to sample the center of the texel
-    vec4 texColor = texture(texture0, (cellCoord + 0.5) / gridSize);
-
-    // If the cell is empty/dead (Alpha 0 or Black), just draw it as is
-    if (texColor.a == 0.0) {
-        finalColor = texColor;
-        return;
-    }
-
-    // 3. SDF Logic for Rounded Box with Padding
-    // Center the coordinates (-0.5 to 0.5)
-    vec2 p = cellUV - 0.5;
-    
-    // Calculate the box size (0.5 is full cell, subtract gap)
-    vec2 boxSize = vec2(0.5 - gap);
-    
-    // Signed Distance Field math for rounded box
-    vec2 d = abs(p) - (boxSize - radius);
-    float dist = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - radius;
-
-    // 4. Output
-    if (dist > 0.0) {
-        // We are inside the gap/corner area -> Transparent
-        finalColor = vec4(0.0); 
-    } else {
-        // We are inside the rounded shape -> Use the texture color (Living/Dead)
-        finalColor = texColor;
-    }
-}
-)";
 class Grid {
 public:
   Grid();
@@ -397,6 +350,12 @@ public:
   Shader bloom;
   Shader def;
   Shader main_shader;
+  float bsamples;
+  float bquality;
+  int bsamploc;
+  int bqualloc;
+  float gapVal;
+  float radiusVal;
   Game();
   ~Game();
   void init_game();
@@ -424,14 +383,21 @@ void Game::init_game() {
   gridSizeLoc = GetShaderLocation(gridShader, "gridSize");
   gapLoc = GetShaderLocation(gridShader, "gap");
   radiusLoc = GetShaderLocation(gridShader, "radius");
+  bsamploc = GetShaderLocation(bloom, "samples");
+  bqualloc = GetShaderLocation(bloom, "quality");
+
   int sizeLoc = GetShaderLocation(bloom, "size");
   main_shader = def;
-  float gapVal = 0.1f;
-  float radiusVal = 0.2f;
+  gapVal = 0.1f;
+  radiusVal = 0.2f;
   float size_dims[] = {screenWidth, screenHeight};
+  bsamples = 20.0;
+  bquality = 5.0;
   SetShaderValue(gridShader, gapLoc, &gapVal, SHADER_UNIFORM_FLOAT);
   SetShaderValue(gridShader, radiusLoc, &radiusVal, SHADER_UNIFORM_FLOAT);
   SetShaderValue(bloom, sizeLoc, &size_dims, SHADER_UNIFORM_VEC2);
+  SetShaderValue(bloom, bsamploc, &bsamples, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(bloom, bqualloc, &bquality, SHADER_UNIFORM_FLOAT);
 }
 void Game::run() {
   InitWindow(screenWidth, screenHeight, "GAME OF LIFE");
@@ -504,6 +470,39 @@ void Game::handle_inputs() {
     else
       main_shader = def;
   }
+  if (IsKeyDown(KEY_G) && IsKeyPressed(KEY_UP)) {
+    gapVal += 0.01;
+    SetShaderValue(gridShader, gapLoc, &gapVal, SHADER_UNIFORM_FLOAT);
+  }
+  if (IsKeyDown(KEY_G) && IsKeyPressed(KEY_DOWN)) {
+    gapVal -= 0.01;
+    SetShaderValue(gridShader, gapLoc, &gapVal, SHADER_UNIFORM_FLOAT);
+  }
+  if (IsKeyDown(KEY_R) && IsKeyPressed(KEY_UP)) {
+    radiusVal += 0.01;
+    SetShaderValue(gridShader, radiusLoc, &radiusVal, SHADER_UNIFORM_FLOAT);
+  }
+  if (IsKeyDown(KEY_R) && IsKeyPressed(KEY_DOWN)) {
+    radiusVal -= 0.01;
+    SetShaderValue(gridShader, radiusLoc, &radiusVal, SHADER_UNIFORM_FLOAT);
+  }
+  if ((IsKeyDown(KEY_B) && IsKeyDown(KEY_S) && IsKeyDown(KEY_UP))) {
+    bsamples += 0.1;
+    SetShaderValue(bloom, bsamploc, &bsamples, SHADER_UNIFORM_FLOAT);
+  }
+  if ((IsKeyDown(KEY_B) && IsKeyDown(KEY_S) && IsKeyDown(KEY_DOWN))) {
+    bsamples -= 0.1;
+    SetShaderValue(bloom, bsamploc, &bsamples, SHADER_UNIFORM_FLOAT);
+  }
+  if ((IsKeyDown(KEY_B) && IsKeyDown(KEY_W) && IsKeyDown(KEY_UP))) {
+    bquality += 0.1;
+    SetShaderValue(bloom, bqualloc, &bquality, SHADER_UNIFORM_FLOAT);
+  }
+  if ((IsKeyDown(KEY_B) && IsKeyDown(KEY_W) && IsKeyDown(KEY_DOWN))) {
+    bquality -= 0.1;
+    SetShaderValue(bloom, bqualloc, &bquality, SHADER_UNIFORM_FLOAT);
+  }
+
   if (mode == 0) {
     if (IsKeyPressed(KEY_SPACE)) {
       mode = 1;

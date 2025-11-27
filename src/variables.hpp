@@ -13,8 +13,8 @@
 #define CELL_SIZE 10
 #define MARGIN 3
 #define ROUNDED 0.5
-#define ROWS 150
-#define COLS 150
+#define ROWS 100
+#define COLS 100
 #define RAND 1000
 #define DDA_DELTA CELL_SIZE / 2.0
 #define CONTINUE_1 KEY_ENTER
