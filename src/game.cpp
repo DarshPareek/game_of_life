@@ -316,50 +316,14 @@ void update_cell(Vector2 cursor, std::vector<std::vector<int>> &grid,
     grid[x][y] = state;
   }
 }
-
-// void get_cursor_pos(std::vector<std::vector<int>> &grid, int state,
-//                     Camera2D &camera) {
-//   Vector2 now = GetScreenToWorld2D(GetMousePosition(), camera);
-//   Vector2 delta = GetMouseDelta();
-//   delta.x /= camera.zoom;
-//   delta.y /= camera.zoom;
-//   Vector2 prev = now;
-//   prev.x -= delta.x;
-//   prev.y -= delta.y;
-//   Vector2 current, source, target;
-//   if (prev.x <= now.x) {
-//     source = prev;
-//     target = now;
-//   } else {
-//     source = now;
-//     target = prev;
-//   }
-//   current = source;
-//   double slope = abs(target.y - source.y) / (target.x - source.x);
-//   while (is_in(current, target, source)) {
-//     update_cell(current, grid, state);
-//     if (abs(target.x - source.x) <= abs(target.y - source.y)) {
-//       current.y += DDA_DELTA * ((target.y >= current.y) ? 1.0 : -1.0);
-//       double delta_x = DDA_DELTA / slope;
-//       current.x += delta_x * ((target.x >= current.x) ? 1.0 : -1.0);
-//     } else {
-//       current.x += DDA_DELTA * ((target.x >= current.x) ? 1.0 : -1.0);
-//       double delta_y = slope * DDA_DELTA;
-//       current.y += delta_y * ((target.y >= current.y) ? 1.0 : -1.0);
-//     }
-//   }
-// }
 void get_cursor_pos(Grid &grid, int state, Camera2D &camera) {
 
   Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), camera);
   Vector2 delta = GetMouseDelta();
 
-  // Adjust delta by zoom to get accurate world movement
   Vector2 prevPos = {mousePos.x - delta.x / camera.zoom,
                      mousePos.y - delta.y / camera.zoom};
 
-  // 1. Convert World Coordinates to Grid Indices (Integers)
-  // We do this ONCE before the loop.
   int x0 = (int)(prevPos.x /
                  (CELL_SIZE)); // Assuming margins are handled in shader/logic
   int y0 = (int)(prevPos.y / (CELL_SIZE));
@@ -369,7 +333,6 @@ void get_cursor_pos(Grid &grid, int state, Camera2D &camera) {
   int rows = grid.grid.size();
   int cols = grid.grid[0].size();
 
-  // 2. Bresenham's Line Algorithm (Integer Math = No Infinite Loops)
   int dx = abs(x1 - x0);
   int sx = x0 < x1 ? 1 : -1;
   int dy = -abs(y1 - y0);
@@ -377,9 +340,8 @@ void get_cursor_pos(Grid &grid, int state, Camera2D &camera) {
   int err = dx + dy;
 
   while (true) {
-    // Bounds Check before writing
     if (x0 >= 0 && x0 < cols && y0 >= 0 && y0 < rows) {
-      grid.grid[y0][x0] = state; // Note: grid is usually [row][col] -> [y][x]
+      grid.grid[y0][x0] = state;
       grid.pred_grid[y0][x0] = state;
       Color color = (state == 1) ? LIVING : DEAD;
       Color color1 = (state == 1) ? PRED_LIVING : PRED_DEAD;
@@ -387,7 +349,6 @@ void get_cursor_pos(Grid &grid, int state, Camera2D &camera) {
       ImageDrawPixel(&grid.predImage, x0, y0, color1);
     }
 
-    // If we reached the target cell, break
     if (x0 == x1 && y0 == y1)
       break;
 
@@ -433,6 +394,9 @@ public:
   int gridSizeLoc;
   int gapLoc;
   int radiusLoc;
+  Shader bloom;
+  Shader def;
+  Shader main_shader;
   Game();
   ~Game();
   void init_game();
@@ -453,19 +417,21 @@ void Game::init_game() {
   hs = LoadRenderTexture(screenWidth, screenHeight);
   home_screen_texture();
   grids.Init();
-  gridShader = LoadShaderFromMemory(0, GRID_FS);
-
-  // Get the locations of the variables in the shader
+  gridShader =
+      LoadShader(0, TextFormat("resources/grid_shader.fs", GLSL_VERSION));
+  bloom = LoadShader(0, TextFormat("resources/bloom.fs", GLSL_VERSION));
+  def = LoadShader(0, 0);
   gridSizeLoc = GetShaderLocation(gridShader, "gridSize");
   gapLoc = GetShaderLocation(gridShader, "gap");
   radiusLoc = GetShaderLocation(gridShader, "radius");
-
-  // Set constant values (Adjust these to taste!)
-  float gapVal = 0.1f;    // Size of spacing (0.05 is nice)
-  float radiusVal = 0.2f; // Roundness (0.5 is a circle, 0.0 is square)
-
+  int sizeLoc = GetShaderLocation(bloom, "size");
+  main_shader = def;
+  float gapVal = 0.1f;
+  float radiusVal = 0.2f;
+  float size_dims[] = {screenWidth, screenHeight};
   SetShaderValue(gridShader, gapLoc, &gapVal, SHADER_UNIFORM_FLOAT);
   SetShaderValue(gridShader, radiusLoc, &radiusVal, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(bloom, sizeLoc, &size_dims, SHADER_UNIFORM_VEC2);
 }
 void Game::run() {
   InitWindow(screenWidth, screenHeight, "GAME OF LIFE");
@@ -484,10 +450,12 @@ void Game::run() {
     }
     handle_drawing();
     BeginDrawing();
+    BeginShaderMode(main_shader);
     DrawTextureRec(main.texture,
                    (Rectangle){0, 0, (float)main.texture.width,
                                (float)-main.texture.height},
                    (Vector2){0, 0}, WHITE);
+    EndShaderMode();
     UpdateHelpDialog();
     EndDrawing();
   }
@@ -530,6 +498,12 @@ void Game::handle_inputs() {
     CloseWindow();
     exit(0);
   }
+  if (IsKeyPressed(KEY_S)) {
+    if (main_shader.id == def.id)
+      main_shader = bloom;
+    else
+      main_shader = def;
+  }
   if (mode == 0) {
     if (IsKeyPressed(KEY_SPACE)) {
       mode = 1;
@@ -565,7 +539,6 @@ void Game::handle_drawing() {
   ClearBackground(BG_COLOR);
 
   if (mode == 0) {
-    // Draw Home Screen
     Rectangle source = {0, 0, (float)hs.texture.width,
                         (float)-hs.texture.height};
     Rectangle dest = {0, 0, (float)screenWidth, (float)screenHeight};
@@ -574,11 +547,7 @@ void Game::handle_drawing() {
     BeginMode2D(camera);
     float gridDims[2] = {(float)COLS, (float)ROWS};
     SetShaderValue(gridShader, gridSizeLoc, gridDims, SHADER_UNIFORM_VEC2);
-
-    // --- ACTIVATE SHADER ---
     BeginShaderMode(gridShader);
-
-    // Draw the grid (The shader will round the corners!)
     grids.draw(predict);
 
     EndShaderMode();
