@@ -411,3 +411,7 @@ compile_commands.json
 
 my_game
 CMakeFiles/my_game*
+
+./CMakeCache.txt
+CMakeCache.txt
+
