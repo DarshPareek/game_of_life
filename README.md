@@ -8,12 +8,16 @@ It also features a **Prediction Mode**—a "ghost" overlay that shows you exactl
 
 ## How to Build
 
-You'll need a C++ compiler and Raylib installed.
+### Linux
 
 ```bash
-g++ main.cpp -o game -lraylib -GL -lm -lpthread -ldl -lrt -lX11
-./game
-
+git clone https://github.com/DarshPareek/game_of_life.git
+cd game_of_life/build
+./premake5 gmake
+cd ..
+cmake .
+make
+./GameOfLife
 ```
 
 ## Controls
